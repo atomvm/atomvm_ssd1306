@@ -1,0 +1,9 @@
+menu "ATOMVM_SSD1306 Configuration"
+
+config AVM_SSD1306_ENABLE
+	bool  "Enable AtomVM SSD1306 driver"
+	default y
+	help
+		Use this parameter to enable or disable the AtomVM SSD1306 driver.
+
+endmenu
