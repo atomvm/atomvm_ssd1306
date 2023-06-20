@@ -81,14 +81,13 @@
 
 #define TAG "atomvm_ssd1306"
 
-static const char *const sda_pin_atom =     "\x7" "sda_pin";
-static const char *const scl_pin_atom =     "\x7" "scl_pin";
-static const char *const freq_hz_atom =     "\x7" "freq_hz";
-static const char *const i2c_num_atom =     "\x7" "i2c_num";
-static const char *const i2c_num_0_atom =   "\x9" "i2c_num_0";
-static const char *const i2c_num_1_atom =   "\x9" "i2c_num_1";
+static const char *const sda_pin_atom =     ATOM_STR("\x7", "sda_pin");
+static const char *const scl_pin_atom =     ATOM_STR("\x7", "scl_pin");
+static const char *const freq_hz_atom =     ATOM_STR("\x7", "freq_hz");
+static const char *const i2c_num_atom =     ATOM_STR("\x7", "i2c_num");
+static const char *const i2c_num_0_atom =   ATOM_STR("\x9", "i2c_num_0");
+static const char *const i2c_num_1_atom =   ATOM_STR("\x9", "i2c_num_1");
 
-        // RAISE_ERROR(ERROR_ATOM);
 #define I2C_MASTER_WRITE_BYTE(CMD, BYTE, ACK) {\
     esp_err_t err = i2c_master_write_byte(CMD, BYTE, ACK); \
     if (err != ESP_OK) { \
@@ -103,11 +102,11 @@ static const char *const i2c_num_1_atom =   "\x9" "i2c_num_1";
     } \
 }
 
-static i2c_port_t get_i2c_port_num(Context *ctx, term t)
+static i2c_port_t get_i2c_port_num(GlobalContext *global, term t)
 {
-    if (t == context_make_atom(ctx, i2c_num_0_atom)) {
+    if (globalcontext_is_term_equal_to_atom_string(global, t, i2c_num_0_atom)) {
         return I2C_NUM_0;
-    } else if (t == context_make_atom(ctx, i2c_num_1_atom)) {
+    } else if (globalcontext_is_term_equal_to_atom_string(global, t, i2c_num_1_atom)) {
         return I2C_NUM_1;
     } else {
         return I2C_NUM_MAX;
@@ -133,22 +132,24 @@ static esp_err_t init_ssd1306_command(i2c_port_t i2c_num)
 
 static term nif_ssd1306_init(Context *ctx, int argc, term argv[])
 {
+    TRACE(TAG ": nif_ssd1306_init\n");
     UNUSED(argc);
 
     term config = argv[0];
     VALIDATE_VALUE(config, term_is_map);
 
-    term sda_pin_term = interop_map_get_value(ctx, config, context_make_atom(ctx, sda_pin_atom));
+    term sda_pin_term = interop_kv_get_value(config, sda_pin_atom, ctx->global);
     VALIDATE_VALUE(sda_pin_term, term_is_integer);
-    term scl_pin_term = interop_map_get_value(ctx, config, context_make_atom(ctx, scl_pin_atom));
+    term scl_pin_term = interop_kv_get_value(config, scl_pin_atom, ctx->global);
     VALIDATE_VALUE(scl_pin_term, term_is_integer);
-    term freq_hz_term = interop_map_get_value(ctx, config, context_make_atom(ctx, freq_hz_atom));
+    term freq_hz_term = interop_kv_get_value(config, freq_hz_atom, ctx->global);
     VALIDATE_VALUE(freq_hz_term, term_is_integer);
-    term i2c_num_term = interop_map_get_value(ctx, config, context_make_atom(ctx, i2c_num_atom));
+    term i2c_num_term = interop_kv_get_value(config, i2c_num_atom, ctx->global);
     VALIDATE_VALUE(i2c_num_term, term_is_atom);
 
-    i2c_port_t i2c_num = get_i2c_port_num(ctx, i2c_num_term);
+    i2c_port_t i2c_num = get_i2c_port_num(ctx->global, i2c_num_term);
     if (i2c_num == I2C_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid I2C portnum");
         RAISE_ERROR(BADARG_ATOM);
     }
 
@@ -208,13 +209,15 @@ static esp_err_t write_page_command(i2c_port_t i2c_num, uint8_t *page, uint8_t p
 
 static term nif_ssd1306_clear(Context *ctx, int argc, term argv[])
 {
+    TRACE(TAG ": nif_ssd1306_clear\n");
     UNUSED(argc);
 
     term i2c_num_term = argv[0];
     VALIDATE_VALUE(i2c_num_term, term_is_atom);
 
-    i2c_port_t i2c_num = get_i2c_port_num(ctx, i2c_num_term);
+    i2c_port_t i2c_num = get_i2c_port_num(ctx->global, i2c_num_term);
     if (i2c_num == I2C_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid I2C portnum");
         RAISE_ERROR(BADARG_ATOM);
     }
 
@@ -246,6 +249,7 @@ static esp_err_t set_contrast_command(i2c_port_t i2c_num, uint8_t contrast)
 
 static term nif_ssd1306_set_contrast(Context *ctx, int argc, term argv[])
 {
+    TRACE(TAG ": nif_ssd1306_set_contrast\n");
     UNUSED(argc);
 
     term i2c_num_term = argv[0];
@@ -253,8 +257,9 @@ static term nif_ssd1306_set_contrast(Context *ctx, int argc, term argv[])
     term contrast_term = argv[1];
     VALIDATE_VALUE(contrast_term, term_is_integer);
 
-    i2c_port_t i2c_num = get_i2c_port_num(ctx, i2c_num_term);
+    i2c_port_t i2c_num = get_i2c_port_num(ctx->global, i2c_num_term);
     if (i2c_num == I2C_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid I2C portnum");
         RAISE_ERROR(BADARG_ATOM);
     }
 
@@ -319,6 +324,7 @@ static esp_err_t write_text_command(i2c_port_t i2c_num, const char *text, uint8_
 
 static term nif_ssd1306_set_text(Context *ctx, int argc, term argv[])
 {
+    TRACE(TAG ": nif_ssd1306_set_text\n");
     UNUSED(argc);
 
     term i2c_num_term = argv[0];
@@ -326,8 +332,9 @@ static term nif_ssd1306_set_text(Context *ctx, int argc, term argv[])
     term text_term = argv[1];
     VALIDATE_VALUE(text_term, term_is_binary);
 
-    i2c_port_t i2c_num = get_i2c_port_num(ctx, i2c_num_term);
+    i2c_port_t i2c_num = get_i2c_port_num(ctx->global, i2c_num_term);
     if (i2c_num == I2C_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid I2C portnum");
         RAISE_ERROR(BADARG_ATOM);
     }
 
@@ -385,6 +392,7 @@ static void write_bitmap_page(i2c_port_t i2c_num, size_t *bit, uint8_t pagenum, 
 
 static term nif_ssd1306_set_bitmap(Context *ctx, int argc, term argv[])
 {
+    TRACE(TAG ": nif_ssd1306_set_bitmap\n");
     UNUSED(argc);
 
     term i2c_num_term = argv[0];
@@ -396,8 +404,9 @@ static term nif_ssd1306_set_bitmap(Context *ctx, int argc, term argv[])
     term height_term = argv[3];
     VALIDATE_VALUE(height_term, term_is_integer);
 
-    i2c_port_t i2c_num = get_i2c_port_num(ctx, i2c_num_term);
+    i2c_port_t i2c_num = get_i2c_port_num(ctx->global, i2c_num_term);
     if (i2c_num == I2C_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid I2C portnum");
         RAISE_ERROR(BADARG_ATOM);
     }
 
@@ -452,7 +461,7 @@ static term nif_ssd1306_set_qrcode(Context *ctx, int argc, term argv[])
     // term qrcode_term = argv[1];
     // VALIDATE_VALUE(qrcode_term, term_is_binary);
 
-    // i2c_port_t i2c_num = get_i2c_port_num(ctx, i2c_num_term);
+    // i2c_port_t i2c_num = get_i2c_port_num(ctx->global, i2c_num_term);
     // if (i2c_num == I2C_NUM_MAX) {
     //     RAISE_ERROR(BADARG_ATOM);
     // }
@@ -513,7 +522,6 @@ void atomvm_ssd1306_init(GlobalContext *global)
 }
 const struct Nif *atomvm_ssd1306_get_nif(const char *nifname)
 {
-    TRACE("Locating nif %s ...", nifname);
     if (strcmp("ssd1306:nif_init/1", nifname) == 0) {
         TRACE("Resolved platform nif %s ...\n", nifname);
         return &ssd1306_init_nif;
@@ -543,5 +551,5 @@ const struct Nif *atomvm_ssd1306_get_nif(const char *nifname)
 
 #include <sdkconfig.h>
 #ifdef CONFIG_AVM_SSD1306_ENABLE
-REGISTER_NIF_COLLECTION(atomvm_ssd1306, atomvm_ssd1306_init, atomvm_ssd1306_get_nif)
+REGISTER_NIF_COLLECTION(atomvm_ssd1306, atomvm_ssd1306_init, NULL, atomvm_ssd1306_get_nif)
 #endif

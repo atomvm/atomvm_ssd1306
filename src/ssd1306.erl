@@ -186,7 +186,7 @@ handle_call(clear, _From, #state{use_nif=true} = State) ->
 handle_call({set_contrast, Contrast}, _From, #state{use_nif=true} = State) ->
     {reply, ?MODULE:nif_set_contrast(State#state.i2c_num, Contrast rem 256), State};
 handle_call({set_text, Text}, _From, #state{use_nif=true} = State) ->
-    {reply, ?MODULE:nif_set_text(State#state.i2c_num, list_to_binary(Text)), State};
+    {reply, ?MODULE:nif_set_text(State#state.i2c_num, iolist_to_binary(Text)), State};
 % handle_call({set_text, Text}, _From, State) ->
 %     {reply, do_set_text(State#state.i2c, State#state.font_table, Text), State};
 handle_call({set_bitmap, Bitmap, Width, Height}, _From, #state{use_nif=true} = State) ->
