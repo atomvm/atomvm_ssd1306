@@ -81,6 +81,14 @@
 
 #define TAG "atomvm_ssd1306"
 
+#if CONFIG_I2C_PORT_0
+#define I2C_NUM I2C_NUM_0
+#elif CONFIG_I2C_PORT_1
+#define I2C_NUM I2C_NUM_1
+#else
+#define I2C_NUM I2C_NUM_0
+#endif
+
 static const char *const sda_pin_atom =     ATOM_STR("\x7", "sda_pin");
 static const char *const scl_pin_atom =     ATOM_STR("\x7", "scl_pin");
 static const char *const freq_hz_atom =     ATOM_STR("\x7", "freq_hz");
@@ -107,7 +115,7 @@ static i2c_port_t get_i2c_port_num(GlobalContext *global, term t)
     if (globalcontext_is_term_equal_to_atom_string(global, t, i2c_num_0_atom)) {
         return I2C_NUM_0;
     } else if (globalcontext_is_term_equal_to_atom_string(global, t, i2c_num_1_atom)) {
-        return I2C_NUM_1;
+        return I2C_NUM;
     } else {
         return I2C_NUM_MAX;
     }
