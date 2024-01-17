@@ -260,7 +260,10 @@ handle_call(clear, _From, State) ->
 handle_call({set_text, Text}, _From, #state{use_nif = true} = State) ->
     {reply, ?MODULE:nif_set_text(State#state.i2c_num, iolist_to_binary(Text)), State};
 handle_call({set_text, Text}, _From, State) ->
-    Resp = do_set_text(State#state.i2c_bus, State#state.address, State#state.font_table, Text),
+    Resp = do_set_text(State#state.i2c_bus,
+		       State#state.address,
+		       State#state.font_table,
+		       binary_to_list(iolist_to_binary(Text))),
     {reply, Resp, State};
 handle_call({set_contrast, Contrast}, _From, #state{use_nif = true} = State) ->
     {reply, ?MODULE:nif_set_contrast(State#state.i2c_num, Contrast), State};
