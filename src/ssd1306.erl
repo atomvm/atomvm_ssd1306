@@ -243,13 +243,24 @@ init(#{use_nif := true} = Config) ->
 init(Config) ->
     I2CBus = maps:get(i2c_bus, Config),
     Address = maps:get(address, Config, ?I2C_ADDRESS),
+    Height = maps:get(height, Config, 64),
+    Width = maps:get(width, Config, 128),
+    ResetPin = maps:get(reset_pin, Config, -1),
     FontTable = maps:get(font_table, Config, create_font_table()),
-    ok = initialize_display(I2CBus, Address),
-    {ok, #state{
-	    i2c_bus = I2CBus,
-	    address = Address,
-	    zero = create_zero(),
-	    font_table = FontTable}}.
+
+    %% 8.5 Reset Circuit
+    maybe_reset(ResetPin),
+
+    case initialize_display(I2CBus, Address, Height, Width) of
+	ok ->
+	    {ok, #state{
+		    i2c_bus = I2CBus,
+		    address = Address,
+		    zero = create_zero(),
+		    font_table = FontTable}};
+	Error ->
+	    {stop, Error}
+    end.
 
 %% @hidden
 handle_call(clear, _From, #state{use_nif = true} = State) ->
@@ -288,7 +299,7 @@ handle_info(_Info, State) ->
 %% Internal functions
 
 % %% @private
-initialize_display(I2CBus, Address) ->
+initialize_display(I2CBus, Address, _Height, _Weight) ->
     Data = <<
 	     ?CONTROL_BYTE_CMD_STREAM:8,
 	     ?CMD_DISPLAY_OFF:8,
@@ -318,6 +329,18 @@ initialize_display(I2CBus, Address) ->
 	     ?CMD_DISPLAY_ON:8
 	   >>,
     i2c_bus:write_bytes(I2CBus, Address, Data).
+
+% %% @private
+maybe_reset(ResetPin) when ResetPin >= 1 ->
+    GPIO = gpio:start(),
+    ok = gpio:set_direction(GPIO, ResetPin, output),
+    ok = gpio:digital_write(ResetPin, high),
+    timer:sleep(1),
+    ok = gpio:digital_write(ResetPin, low),
+    timer:sleep(10),
+    ok = gpio:digital_write(ResetPin, high);
+maybe_reset(_ResetPin) ->
+    ok.
 
 % %% @private
 do_clear(I2CBus, Address, Zero) ->
