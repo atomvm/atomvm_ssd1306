@@ -19,10 +19,9 @@
 -export([start/0]).
 
 start() ->
-    SSD1306Config = #{
-        sda_pin => 21,
-        scl_pin => 22
-    },
+    SSD1306Config = #{sda_pin => 21,
+		      scl_pin => 22,
+		      use_nif => true},
     {ok, SSD1306} = ssd1306:start(SSD1306Config),
     ssd1306:clear(SSD1306),
     ssd1306:set_contrast(SSD1306, 0),
