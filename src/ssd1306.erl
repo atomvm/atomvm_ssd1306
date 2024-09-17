@@ -27,7 +27,7 @@
 
 -behaviour(gen_server).
 
--export([start/1, stop/1, clear/1, set_contrast/2, set_text/2, set_bitmap/4, set_qrcode/2]).
+-export([start/1, stop/1, clear/1, set_inversion/2, set_contrast/2, set_text/2, set_bitmap/4, set_qrcode/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([nif_init/1, nif_clear/1, nif_set_contrast/2, nif_set_text/2, nif_set_bitmap/4, nif_set_qrcode/2]).
 
@@ -83,6 +83,20 @@ stop(SSD1306) ->
 -spec clear(SSD1306::ssd1306()) -> ok | {error, Reason::term()}.
 clear(SSD1306) ->
     gen_server:call(SSD1306, clear).
+
+%%-----------------------------------------------------------------------------
+%% @param       SSD1306 a reference to the SSD1306 instance created via start
+%% @param       Mode sets the inversion active (true) or not active(false - normal)
+%% @returns     ok | error
+%% @doc         Sets the screen inversion mode
+%%
+%%              When executed, will set screen inversion mode
+%%              either to inverted (true), or normal (false)
+%% @end
+%%-----------------------------------------------------------------------------
+-spec set_inversion(SSD1306::ssd1306(), Mode::boolean()) -> ok | {error, Reason::term()}.
+set_inversion(SSD1306, Mode) ->
+    gen_server:call(SSD1306, {set_inversion, Mode}).
 
 %%-----------------------------------------------------------------------------
 %% @param       SSD1306 a reference to the SSD1306 instance created via start
@@ -179,6 +193,8 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %% @hidden
+handle_call({set_inversion, Mode}, From, #state{use_nif=true} = State) ->
+    {reply, ?MODULE:nif_set_inversion(State#state.i2c_num, Mode), State};
 handle_call(clear, _From, #state{use_nif=true} = State) ->
     {reply, ?MODULE:nif_clear(State#state.i2c_num), State};
 % handle_call(clear, _From, State) ->
@@ -482,6 +498,10 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% @hidden
 nif_init(_Config) ->
+    throw(nif_error).
+
+%% @hidden
+nif_set_inversion(_I2CNum, _mode) ->
     throw(nif_error).
 
 %% @hidden
