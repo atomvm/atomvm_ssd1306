@@ -231,11 +231,22 @@ static term nif_ssd1306_clear(Context *ctx, int argc, term argv[])
 
     uint8_t zero[128];
     memset(zero, 0, sizeof zero);
-    for (uint8_t i = 0; i < 8; i++) {
-        esp_err_t err = write_page_command(i2c_num, zero, i);
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG, "Failed to clear page %i.  Error: %i", i, err);
+
+
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+        I2C_MASTER_WRITE_BYTE(cmd, (OLED_I2C_ADDRESS << 1) | I2C_MASTER_WRITE, true);
+        I2C_MASTER_WRITE_BYTE(cmd, OLED_CONTROL_BYTE_CMD_STREAM, true);
+        for (uint8_t i = 0; i < 8; i++) {
+          I2C_MASTER_WRITE_BYTE(cmd, 0xB0 | i , true);
+          I2C_MASTER_WRITE_BYTE(cmd, OLED_CONTROL_BYTE_DATA_STREAM, true);
+          I2C_MASTER_WRITE(cmd, zero, 128, true);
         }
+    i2c_master_stop(cmd);
+    esp_err_t err = i2c_master_cmd_begin(i2c_num, cmd, MASTER_COMMAND_TIMEOUT_MS);
+    i2c_cmd_link_delete(cmd);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to clear.  Error: %i", err);
     }
 
     return OK_ATOM;
