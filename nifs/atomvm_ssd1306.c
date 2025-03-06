@@ -138,6 +138,23 @@ static esp_err_t init_ssd1306_command(i2c_port_t i2c_num)
     return err;
 }
 
+
+
+static esp_err_t set_display_inverted_command(i2c_port_t i2c_num, bool inversion_mode)
+{
+
+    uint8_t command = inversion_mode? OLED_CMD_DISPLAY_INVERTED : OLED_CMD_DISPLAY_NORMAL;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+        I2C_MASTER_WRITE_BYTE(cmd, (OLED_I2C_ADDRESS << 1) | I2C_MASTER_WRITE, true);
+        I2C_MASTER_WRITE_BYTE(cmd, OLED_CONTROL_BYTE_CMD_STREAM, true);
+        I2C_MASTER_WRITE_BYTE(cmd, command , true);
+    i2c_master_stop(cmd);
+    esp_err_t err = i2c_master_cmd_begin(i2c_num, cmd, MASTER_COMMAND_TIMEOUT_MS);
+    i2c_cmd_link_delete(cmd);
+    return err;
+}
+
 static term nif_ssd1306_init(Context *ctx, int argc, term argv[])
 {
     TRACE(TAG ": nif_ssd1306_init\n");
@@ -213,6 +230,44 @@ static esp_err_t write_page_command(i2c_port_t i2c_num, uint8_t *page, uint8_t p
     esp_err_t err = i2c_master_cmd_begin(i2c_num, cmd, MASTER_COMMAND_TIMEOUT_MS);
     i2c_cmd_link_delete(cmd);
     return err;
+}
+
+static term nif_ssd1306_set_inversion(Context *ctx, int argc, term argv[])
+{
+    TRACE(TAG ": nif_ssd1306_set_inversion\n");
+    UNUSED(argc);
+
+    term i2c_num_term = argv[0];
+    VALIDATE_VALUE(i2c_num_term, term_is_atom);
+    term mode_term = argv[1];
+    VALIDATE_VALUE(i2c_num_term, term_is_atom);
+
+    i2c_port_t i2c_num = get_i2c_port_num(ctx->global, i2c_num_term);
+    if (i2c_num == I2C_NUM_MAX) {
+        ESP_LOGE(TAG, "Invalid I2C portnum");
+        RAISE_ERROR(BADARG_ATOM);
+    }
+
+    bool inversion_mode;
+    switch(term_to_atom_index(mode_term)) {
+      case TRUE_ATOM_INDEX:
+        inversion_mode = true;
+        break;
+      case FALSE_ATOM_INDEX:
+        inversion_mode = false;
+        break;
+      default:
+        ESP_LOGE(TAG, "Invalid inversion mode");
+        RAISE_ERROR(BADARG_ATOM);
+    }
+
+    esp_err_t err = set_display_inverted_command(i2c_num, inversion_mode);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set display inverted.  Error: %i", err);
+        return ERROR_ATOM;
+    } else {
+        return OK_ATOM;
+    }
 }
 
 static term nif_ssd1306_clear(Context *ctx, int argc, term argv[])
@@ -497,6 +552,11 @@ static const struct Nif ssd1306_init_nif =
     .base.type = NIFFunctionType,
     .nif_ptr = nif_ssd1306_init
 };
+static const struct Nif ssd1306_set_inversion =
+{
+    .base.type = NIFFunctionType,
+    .nif_ptr = nif_ssd1306_set_inversion
+};
 static const struct Nif ssd1306_clear_nif =
 {
     .base.type = NIFFunctionType,
@@ -533,6 +593,10 @@ const struct Nif *atomvm_ssd1306_get_nif(const char *nifname)
     if (strcmp("ssd1306:nif_init/1", nifname) == 0) {
         TRACE("Resolved platform nif %s ...\n", nifname);
         return &ssd1306_init_nif;
+    }
+    if (strcmp("ssd1306:nif_set_inversion/2", nifname) == 0) {
+        TRACE("Resolved platform nif %s ...\n", nifname);
+        return &ssd1306_set_inversion;
     }
     if (strcmp("ssd1306:nif_clear/1", nifname) == 0) {
         TRACE("Resolved platform nif %s ...\n", nifname);
